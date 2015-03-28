@@ -1,14 +1,20 @@
 -- set up measures, variables
 function Initialize()
-  alertIdMeasure1 = SKIN:GetMeasure("MeasureAlertId1")
-  alertAuthorMeasure1 = SKIN:GetMeasure("MeasureAlertAuthor1")
-  alertIdMeasure2 = SKIN:GetMeasure("MeasureAlertId2")
-  alertAuthorMeasure2 = SKIN:GetMeasure("MeasureAlertAuthor2")
-  alertIdMeasure3 = SKIN:GetMeasure("MeasureAlertId3")
-  alertAuthorMeasure3 = SKIN:GetMeasure("MeasureAlertAuthor3")
-  alertIdMeasure4 = SKIN:GetMeasure("MeasureAlertId4")
-  alertAuthorMeasure4 = SKIN:GetMeasure("MeasureAlertAuthor4")
-  alertNotification = SELF:GetOption("NotificationSound")
+  audioFilter = {}
+  if(SKIN:GetVariable('OnlyNotifyOnPotatos') == 'true') then
+    table.insert(audioFilter, "Orokin Reactor")
+    table.insert(audioFilter, "Orokin Catalyst")
+  end
+  if(SKIN:GetVariable('OnlyNotifyOnVauban') == 'true') then
+    table.insert(audioFilter, "Vauban Helmet (Blueprint)")
+    table.insert(audioFilter, "Vauban Chassis (Blueprint)")
+    table.insert(audioFilter, "Vauban Systems (Blueprint)")
+  end
+  local filterString = ''
+  for i,filter in ipairs(audioFilter) do
+    filterString = filterString..' "'..filter..'"'
+  end
+  print("WarframeAlerts: Notifying on the following alerts: "..filterString)
   oldAlerts = {'-1', '-1', '-1', '-1'}
   alerts = {'-1', '-1', '-1', '-1'}
   updateMeters()
@@ -20,30 +26,32 @@ function Update()
   oldAlerts = alerts
   alerts = {'-1', '-1', '-1', '-1'}
   -- update ids of valid alerts
-  if alertAuthorMeasure1:GetStringValue() == "Alert" and alertIdMeasure1:GetStringValue() ~= '' then
-    alerts[1] = alertIdMeasure1:GetStringValue()
-  end
-  if alertAuthorMeasure2:GetStringValue() == "Alert" and alertIdMeasure2:GetStringValue() ~= '' then
-    alerts[2] = alertIdMeasure2:GetStringValue()
-  end
-  if alertAuthorMeasure3:GetStringValue() == "Alert" and alertIdMeasure3:GetStringValue() ~= '' then
-    alerts[3] = alertIdMeasure3:GetStringValue()
-  end
-  if alertAuthorMeasure4:GetStringValue() == "Alert" and alertIdMeasure4:GetStringValue() ~= '' then
-    alerts[4] = alertIdMeasure4:GetStringValue()
-  end
-  -- check if any alerts are new
-  for i, alert in ipairs(alerts) do
-    if alerts ~= '-1' then
-	  local isNewAlert = true
-      for i, oldAlert in ipairs(oldAlerts) do
-	    if alert == oldAlert then isNewAlert = false end
+  for i=1,4 do
+    idMeasure = SKIN:GetMeasure("MeasureAlertId"..i)
+	authorMeasure = SKIN:GetMeasure("MeasureAlertAuthor"..i)
+	if authorMeasure:GetStringValue() == "Alert" and idMeasure:GetStringValue() ~= '' then
+      alerts[i] = idMeasure:GetStringValue()
+    end
+	local validNewAlert
+	-- check if should play notification sound
+	if audioFilter[1] == nil then validNewAlert = true  -- check if any filters in awkward lua fashion
+	else
+	  local title = SKIN:GetMeasure("MeasureAlert"..i):GetStringValue()
+	  for j,filter in ipairs(audioFilter) do
+	    if string.find(title, filter, 1, true) ~= nil then validNewAlert = true end
 	  end
+	end
+    if validNewAlert == true then
+	  -- is this a new alert?
+	  local isNewAlert = true
+      for j,oldAlert in ipairs(oldAlerts) do
+	    if alerts[i] == oldAlert then isNewAlert = false end
+      end
 	  if isNewAlert then newAlert = true end
 	end
   end
   if SKIN:GetVariable('EnableNotificationSound') == 'true' and newAlert then
-    SKIN:Bang('Play ' .. alertNotification)
+    SKIN:Bang('Play #@#' .. SKIN:GetVariable("NotificationSound"))
 	print("New Alert! (sound)")
   elseif newAlert then
     print("New Alert! (no sound)")
